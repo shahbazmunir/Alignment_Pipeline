@@ -1,0 +1,58 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+
+# This pipeline uses Hisat2 aligner and aligns each Ae.tauchii line to reference genome. It gives output in sam format. 
+# The quality reads were selected whose query coverage was greater than 20.
+# After that reads sorted and stored in compressed format (bam format).
+
+# build database indexes
+# /data/workspace/shahbaz/aligner/hisat2-2.1.0/hisat2-build ../ensembl/Axyz.fa ../ensembl/ABC_dna_sm.toplevel.fa
+
+=begin
+# List all files
+my $var = `ls /data/workspace/common/wheat/seq_data/tauschii | egrep \"*.fq\" | egrep  --invert-match \"*Shoot*|*Root*\" `;
+
+# Progress
+system("echo \"****Alignment summary of different Ae.tauchii lines****\" > progress.txt ");
+
+# Process each line one after another
+my @arr = split("\n", $var);
+for(my $i=0; $i< (scalar @arr); $i++){	
+	my @filename = split("_", $arr[$i]);	
+
+	# Alignment 
+	system("echo \"$i. $filename[0]\" >> progress.txt ");
+	system("/data/workspace/shahbaz/aligner/hisat2-2.1.0/hisat2 -t --threads 8 -x /data/workspace/shahbaz/aligner/ensembl/Axyz.dna_sm.toplevel.fa -1 /data/workspace/common/wheat/seq_data/tauschii/$arr[$i] -2 /data/workspace/common/wheat/seq_data/tauschii/$arr[++$i] -S /data/workspace/shahbaz/aligner/Ae.tauchii_alignments/$filename[0].hisatalign.sam > /data/workspace/shahbaz/aligner/Ae.tauchii_alignments/$filename[0].log 2>&1 ");
+
+	# File Size
+	system(" ls -l -h Ae.tauchii_alignments/$filename[0].hisatalign.sam >> progress.txt ");
+	
+	# Reads quality filter
+	system( "samtools view -H Ae.tauchii_alignments/$filename[0].hisatalign.sam > Ae.tauchii_alignments/$filename[0].hisatalign.filter.sam");
+	system( "samtools view -q 20 Ae.tauchii_alignments/$filename[0].hisatalign.sam >> Ae.tauchii_alignments/$filename[0].hisatalign.filter.sam");
+	system( "ls -l -h Ae.tauchii_alignments/$filename[0].hisatalign.filter.sam >> progress.txt ");
+	
+	# Remove hisat aligned file
+	system( "rm Ae.tauchii_alignments/$filename[0].hisatalign.sam");
+
+	# Convert sam to bam
+	system( "samtools view -Sb Ae.tauchii_alignments/$filename[0].hisatalign.filter.sam > Ae.tauchii_alignments/$filename[0].hisatalign.filter.bam");
+	system( "ls -l -h Ae.tauchii_alignments/$filename[0].hisatalign.filter.bam >> progress.txt ");
+
+	# remove another file
+	system( "rm Ae.tauchii_alignments/$filename[0].hisatalign.filter.sam");
+
+	# Sort .bam files
+	system( "samtools sort Ae.tauchii_alignments/$filename[0].hisatalign.filter.bam > Ae.tauchii_alignments/$filename[0].align.bam ");
+	system( "ls -l -h Ae.tauchii_alignments/$filename[0].align.bam >> progress.txt ");
+	system( "echo \"\"  >> progress.txt");
+
+	# remove another file
+	system( "rm Ae.tauchii_alignments/$filename[0].hisatalign.filter.bam");
+
+}
+=cut
+
